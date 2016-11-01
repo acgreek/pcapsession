@@ -8,6 +8,46 @@
 #include <netinet/if_ether.h> /* includes net/ethernet.h */
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <unordered_map>
+
+struct IpV4Key
+{
+    uint32_t sip;
+    uint16_t sport;
+    uint32_t dip;
+    uint16_t dport;
+    uint16_t proto;
+
+    bool operator==(const IpV4Key &other) const
+    { return (sip == other.sip && sport == other.sport &&dip == other.dip && dport == other.dport && proto == other.proto);
+    }
+
+};
+
+namespace std {
+    template <>
+        struct hash<IpV4Key>
+        {
+            std::size_t operator()(const IpV4Key& k) const
+            {
+                using std::size_t;
+                using std::hash;
+                using std::string;
+
+                // Compute individual hash values for first,
+                // second and third and combine them using XOR
+                // and bit shifting:
+
+                return (((((hash<uint32_t>()(k.sip) ^ (hash<uint16_t>()(k.sport) << 1)) >> 1) ^
+                        (((hash<uint32_t>()(k.dip) ^ (hash<uint16_t>()(k.dport) << 1)) >> 1) <<1)) >> 1) ^
+                        (hash<uint16_t>(k.proto) <<1 ) ) >>1;
+            }
+        };
+
+
+}
+
+
 
 void pcap_callback(u_char *useless, const struct pcap_pkthdr* pkthdr, const u_char *packet) {
     if(packet == NULL)
@@ -32,10 +72,7 @@ void pcap_callback(u_char *useless, const struct pcap_pkthdr* pkthdr, const u_ch
         //printf("Ethernet type hex:%x dec:%d is an ARP packet\n", ntohs(eptr->ether_type), ntohs(eptr->ether_type));
         return;
     }else {
-    //    printf("Ethernet type %x not IP\n", ntohs(eptr->ether_type));
-        //skip these for now
         return;
-
     }
     /*  struct pcap_pkthdr {
      *   struct timeval ts;   time stamp
@@ -50,7 +87,6 @@ void pcap_callback(u_char *useless, const struct pcap_pkthdr* pkthdr, const u_ch
     struct ip *ipp =(struct ip *) (eptr +1);
     if (ipp->ip_p ==IPPROTO_TCP ) {
         struct tcphdr * tcpp = (struct tcphdr *) (((char *)ipp) + (ipp->ip_hl << 2 ));
-
         printf("ds=%s:%d->", inet_ntoa(ipp->ip_src), ntohs(tcpp->source));
         printf("%s:%d\n", inet_ntoa(ipp->ip_dst), ntohs(tcpp->dest));
 

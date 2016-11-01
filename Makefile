@@ -1,4 +1,4 @@
-CXXFLAGS = -Wall -ggdb3 -Wextra
+CXXFLAGS =-std=c++11 -Wall -ggdb3 -Wextra
 LDFLAGS=-lpcap
 
 pcapsession: pcapsession.cc
